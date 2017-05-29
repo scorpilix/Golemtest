@@ -102,14 +102,15 @@ install:
 
   # requirements
   - pip install -r requirements.txt
-  - pip install pytest mock coverage
+  - pip install mock pytest pytest-cov codecov
   - python setup.py develop
 
 build_script:
   - msbuild apps\rendering\resources\taskcollector\taskcollector.sln /p:Configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
 
 test_script:
-  - pytest tests
+  - pytest --cov=golem tests
+  - codecov
 
 on_finish:
   - ps: Stop-Process -Id $IPFSProcess.Id
