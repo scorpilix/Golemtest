@@ -65,6 +65,7 @@ from devp2p.service import BaseService
 from ethereum.utils import encode_hex
 import ethereum.slogging as slogging
 from golem.network.p2p.golemservice import GolemService
+from golem.utils import find_free_net_port
 
 devp2plog = slogging.get_logger('app')
 log = logging.getLogger("golem.client")
@@ -138,6 +139,9 @@ class Client(BaseApp, HardwarePresetsMixin):
 
         from golem.p2pconfig import p2pconfig
         self.configp2p = p2pconfig
+        port = find_free_net_port()
+        self.configp2p['discovery']["listen_port"] = port
+        self.configp2p['p2p']["listen_port"] = port
         self.configp2p['node'] = {}
         self.configp2p['node']['privkey_hex'] = encode_hex(
             self.keys_auth._private_key)
