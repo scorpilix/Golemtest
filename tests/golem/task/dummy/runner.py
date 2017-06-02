@@ -79,7 +79,7 @@ def run_requesting_node(datadir, num_subtasks=3):
     task.initialize(DirManager(datadir))
     client.enqueue_new_task(task)
 
-    port = client.p2pservice.cur_port
+    port = client.get_p2p_port()
     requestor_addr = "{}:{}".format(client.node.prv_addr, port)
     report("Listening on {}".format(requestor_addr))
 
