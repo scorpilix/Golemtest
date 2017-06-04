@@ -1,0 +1,30 @@
+coverage:
+  range: 50...100
+  notify:
+    gitter:
+      default:
+        threshold: 0
+        url: https://gitter.im/golemfactory/golem
+  status:
+    patch:
+      default:
+        target: 80
+    project:
+      default:
+        target: auto
+    changes: false
+  ignore:
+    - "apps/core/benchmark/minilight/*"
+    - "apps/core/gui/*"
+    - "apps/rendering/resources/taskcollector/*"
+    - "golem/testutils.py"
+    - "golem/tools/pyuic.py"
+    - "golem/reactor/geventreactor.py"
+    - "save/*"
+    - "scripts/*"
+    - "tests/*"
+    - "setup.py"
+    - "Installer/*"
+    - "setup/*"
+comment:
+  layout: header, diff, changes, sunburst, uncovered

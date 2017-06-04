@@ -1,0 +1,116 @@
+os: Visual Studio 2015
+version: '{branch}-{build}'
+
+branches:
+  only:
+  - master
+  - develop
+
+environment:
+  matrix:
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.13"
+      PYTHON_ARCH: "32"
+
+      NODEJS_VERSION: "6"
+
+      VER_GETH: geth-windows-amd64-1.6.1-021c3c28
+      VER_IPFS: go-ipfs_v0.4.4_windows-386
+      VER_OPENSSL: openssl-1.0.2k-i386-win32
+
+      DIR_OPENSSL: C:\OpenSSL
+      DIR_GETH: C:\%VER_GETH%
+      DIR_IPFS: C:\go-ipfs
+      DIR_WHEELS: C:\wheels
+
+      WHEEL_SIP: sip-4.19-cp27-cp27m-win32.whl
+      WHEEL_PYQT: PyQt5-5.7.1-cp27-cp27m-win32.whl
+      WHEEL_OPENEXR: OpenEXR-1.2.0-cp27-none-win32.whl
+      WHEEL_PYETHASH: pyethash-0.1.23-cp27-cp27m-win32.whl
+      WHEEL_SECP256K1: secp256k1-0.13.2-cp27-cp27m-win32.whl
+
+      WHEELS: (%WHEEL_SIP% %WHEEL_PYQT% %WHEEL_OPENEXR% %WHEEL_PYETHASH% %WHEEL_SECP256K1%)
+
+      PYWIN32: pywin32-220.win32-py2.7.exe
+
+      WHEELS_URL: https://raw.githubusercontent.com/wiki/golemfactory/golem/wheels
+
+cache:
+  - '%DIR_OPENSSL%            -> appveyor.yml'
+  - '%DIR_IPFS%               -> appveyor.yml'
+  - '%DIR_GETH%               -> appveyor.yml'
+  - '%DIR_WHEELS%             -> requirements.txt'
+  - '%LOCALAPPDATA%\pip\Cache -> requirements.txt'
+  - C:\ProgramData\chocolatey -> appveyor.yml
+
+install:
+  - set PATH=%PYTHON%;%PYTHON%\Scripts;%PYTHON%\Lib\site-packages\PyQt5;%DIR_OPENSSL%;%DIR_GETH%;%DIR_IPFS%;%SystemRoot%\system32;%PATH%
+
+  # ssl
+  - if not exist %OPENSSL_DIR% (
+      appveyor DownloadFile https://raw.githubusercontent.com/wiki/golemfactory/golem/binaries/%VER_OPENSSL%.zip &&
+      7z x %VER_OPENSSL%.zip -y -aoa -oC:\OpenSSL > NUL
+    )
+
+  # geth
+  - if not exist %DIR_GETH% (
+      appveyor DownloadFile https://gethstore.blob.core.windows.net/builds/%VER_GETH%.zip &&
+      7z x %VER_GETH%.zip -y -aoa -oC:\ > NUL
+    )
+
+  # nodejs
+  - ps: Install-Product node $env:NODEJS_VERSION
+
+  # golem-hyperdrive
+  - git clone https://github.com/mfranciszkiewicz/golem-hyperdrive --depth 1
+  - cd golem-hyperdrive && npm install --save && cd ..
+  - ps: $HyperdriveProcess = Start-Process node golem-hyperdrive\src\index.js -PassThru
+
+  # ipfs
+  - if not exist %DIR_IPFS% (
+      appveyor DownloadFile https://dist.ipfs.io/go-ipfs/v0.4.4/%VER_IPFS%.zip &&
+      7z x %VER_IPFS%.zip -y -aoa -oC:\ > NUL
+    )
+
+  - ipfs init
+  - ps: $IPFSProcess = Start-Process ipfs daemon -PassThru
+
+  # pip
+  - pip install --disable-pip-version-check --user --upgrade pip
+
+  # pywin32
+  - if not exist %DIR_WHEELS% (
+      mkdir %DIR_WHEELS%
+    )
+  - if not exist %DIR_WHEELS%\%PYWIN32% (
+      appveyor DownloadFile %WHEELS_URL%/%PYWIN32% &&
+      move %PYWIN32% %DIR_WHEELS%\%PYWIN32%
+    )
+  - easy_install.exe %DIR_WHEELS%\%PYWIN32%
+  - easy_install.exe wheel
+
+  # prebuilt packages
+  - for %%w in %WHEELS% do (
+      if not exist %WHEELS_URL%\%%w (
+        appveyor DownloadFile %WHEELS_URL%/%%w &&
+        move %%w %DIR_WHEELS%\%%w
+      ) &&
+      pip install %DIR_WHEELS%\%%w
+    )
+
+  - copy NUL > "%PYTHON%\Lib\site-packages\zope\__init__.py"
+
+  # requirements
+  - pip install six pytest mock coverage
+  - pip install -r requirements.txt
+  - python setup.py develop
+
+build_script:
+  - msbuild apps\rendering\resources\taskcollector\taskcollector.sln /p:Configuration=Release /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+
+test_script:
+  - pytest tests
+
+on_finish:
+  - ps: Stop-Process -Id $IPFSProcess.Id
+  - ps: Stop-Process -Id $HyperdriveProcess.Id
